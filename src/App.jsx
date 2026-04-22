@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { DataProvider } from './context/DataContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Vehicles from './pages/Vehicles'
@@ -9,6 +10,7 @@ import Profile from './pages/Profile'
 
 export default function App() {
   return (
+    <DataProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
@@ -22,5 +24,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </DataProvider>
   )
 }

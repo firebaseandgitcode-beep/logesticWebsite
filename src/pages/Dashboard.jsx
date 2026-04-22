@@ -1,5 +1,6 @@
 import { Truck, Users, UserCog, AlertTriangle } from 'lucide-react'
-import { initialVehicles, initialDrivers, initialManagement, isExpired, isExpiringSoon } from '../data/store'
+import { isExpired, isExpiringSoon } from '../data/store'
+import { useData } from '../context/DataContext'
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -30,12 +31,14 @@ function AlertRow({ label, detail, type }) {
 }
 
 export default function Dashboard() {
-  const activeVehicles = initialVehicles.filter(v => v.status === 'active').length
-  const activeDrivers = initialDrivers.filter(d => d.status === 'active').length
-  const activeMgmt = initialManagement.filter(m => m.status === 'active').length
+  const { vehicles, drivers, management } = useData()
+
+  const activeVehicles = vehicles.filter(v => v.status === 'active').length
+  const activeDrivers = drivers.filter(d => d.status === 'active').length
+  const activeMgmt = management.filter(m => m.status === 'active').length
 
   const alerts = []
-  initialVehicles.forEach(v => {
+  vehicles.forEach(v => {
     if (isExpired(v.insurance.expiry)) alerts.push({ label: `${v.vehicleNumber} — Insurance expired`, detail: v.insurance.expiry, type: 'expired' })
     else if (isExpiringSoon(v.insurance.expiry)) alerts.push({ label: `${v.vehicleNumber} — Insurance expiring soon`, detail: v.insurance.expiry, type: 'expiring' })
     if (isExpired(v.pollution.expiry)) alerts.push({ label: `${v.vehicleNumber} — Pollution cert expired`, detail: v.pollution.expiry, type: 'expired' })
@@ -50,9 +53,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard icon={Truck} label="Active Vehicles" value={`${activeVehicles} / ${initialVehicles.length}`} color="bg-blue-500" />
-        <StatCard icon={Users} label="Active Drivers" value={`${activeDrivers} / ${initialDrivers.length}`} color="bg-emerald-500" />
-        <StatCard icon={UserCog} label="Management" value={`${activeMgmt} / ${initialManagement.length}`} color="bg-violet-500" />
+        <StatCard icon={Truck} label="Active Vehicles" value={`${activeVehicles} / ${vehicles.length}`} color="bg-blue-500" />
+        <StatCard icon={Users} label="Active Drivers" value={`${activeDrivers} / ${drivers.length}`} color="bg-emerald-500" />
+        <StatCard icon={UserCog} label="Management" value={`${activeMgmt} / ${management.length}`} color="bg-violet-500" />
       </div>
 
       {alerts.length > 0 && (
@@ -68,28 +71,31 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Recent Vehicles</h2>
           <div className="space-y-3">
-            {initialVehicles.slice(0, 3).map(v => (
-              <div key={v.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{v.vehicleNumber}</p>
-                  <p className="text-xs text-gray-400">{v.make} · {v.vehicleType}</p>
+            {vehicles.slice(0, 3).map(v => {
+              const driver = drivers.find(d => d.driverId === v.assignedDriver)
+              return (
+                <div key={v.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{v.vehicleNumber}</p>
+                    <p className="text-xs text-gray-400">{v.make} · {v.vehicleType}{driver ? ` · ${driver.name}` : ''}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${v.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {v.status}
+                  </span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${v.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {v.status}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Recent Drivers</h2>
           <div className="space-y-3">
-            {initialDrivers.slice(0, 3).map(d => (
+            {drivers.slice(0, 3).map(d => (
               <div key={d.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{d.name}</p>
-                  <p className="text-xs text-gray-400">{d.driverId} · {d.phone}</p>
+                  <p className="text-xs text-gray-400">{d.driverId}{d.assignedVehicle ? ` · ${d.assignedVehicle}` : ' · No vehicle'}</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${d.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {d.status}
