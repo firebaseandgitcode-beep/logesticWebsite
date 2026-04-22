@@ -1,10 +1,212 @@
 import { useState } from 'react'
-import { Plus, Search, Upload, FileText } from 'lucide-react'
-import { isExpired, isExpiringSoon } from '../data/store'
+import { Plus, Search, Upload, FileText, ArrowLeft, Eye } from 'lucide-react'
+import { isExpired, isExpiringSoon, tripRevenue, tripNetPay, tripOrigin, tripDest } from '../data/store'
 import { useData } from '../context/DataContext'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
+
+// ─── Vehicle Detail View ──────────────────────────────────────────────────────
+
+function VehicleDetail({ vehicle, drivers, trips, onBack, onEdit }) {
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+
+  const driver = drivers.find(d => d.driverId === vehicle.assignedDriver)
+  const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
+
+  const vehicleTrips = trips
+    .filter(t => {
+      if (t.vehicleNumber !== vehicle.vehicleNumber) return false
+      if (from && t.date < from) return false
+      if (to && t.date > to) return false
+      return true
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+  const totalRevenue = vehicleTrips.reduce((sum, trip) => sum + tripRevenue(trip), 0)
+  const totalNet = vehicleTrips.reduce((sum, trip) => sum + tripNetPay(trip), 0)
+  const completedTrips = vehicleTrips.filter(trip => trip.status === 'completed').length
+  const latestTrip = vehicleTrips[0]
+
+  const docSt = (expiry) => {
+    if (isExpired(expiry)) return { label: 'Expired', cls: 'text-red-600 bg-red-50 border-red-200' }
+    if (isExpiringSoon(expiry)) return { label: 'Expiring Soon', cls: 'text-amber-600 bg-amber-50 border-amber-200' }
+    return { label: 'Valid', cls: 'text-green-600 bg-green-50 border-green-200' }
+  }
+
+  const STATUS_STYLES = {
+    completed: 'bg-green-100 text-green-700',
+    in_progress: 'bg-blue-100 text-blue-700',
+    planned: 'bg-amber-100 text-amber-700',
+    cancelled: 'bg-red-100 text-red-600',
+  }
+
+  return (
+    <div className="space-y-6 max-w-5xl">
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+          <ArrowLeft size={16} /> Back to Vehicles
+        </button>
+        <button onClick={onEdit}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+          Edit Vehicle
+        </button>
+      </div>
+
+      {/* Vehicle info */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 font-mono">{vehicle.vehicleNumber}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{vehicle.make} · {vehicle.vehicleType} · {vehicle.type}</p>
+          </div>
+          <Badge status={vehicle.status} />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+          <div>
+            <p className="text-xs text-gray-400">RC Card</p>
+            <p className="text-sm font-medium text-gray-700">{vehicle.rcCard ? 'Uploaded' : 'Not uploaded'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-1">Insurance</p>
+            <span className={`text-xs px-2 py-0.5 rounded border font-medium ${docSt(vehicle.insurance.expiry).cls}`}>
+              {docSt(vehicle.insurance.expiry).label} · {vehicle.insurance.expiry}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 mb-1">Pollution Cert</p>
+            <span className={`text-xs px-2 py-0.5 rounded border font-medium ${docSt(vehicle.pollution.expiry).cls}`}>
+              {docSt(vehicle.pollution.expiry).label} · {vehicle.pollution.expiry}
+            </span>
+          </div>
+        </div>
+
+        {/* Assigned driver */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs text-gray-400 mb-2">Assigned Driver</p>
+          {driver ? (
+            <div className="flex items-center gap-3">
+              <Avatar src={driver.avatar} name={driver.name} size="md" color="emerald" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{driver.name}</p>
+                <p className="text-xs text-gray-400 font-mono">{driver.driverId} · {driver.phone}</p>
+              </div>
+            </div>
+          ) : <p className="text-sm text-gray-400">No driver assigned</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Rides', value: vehicleTrips.length, tone: 'text-blue-700 bg-blue-50 border-blue-200' },
+          { label: 'Completed', value: completedTrips, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+          { label: 'Revenue', value: fmt(totalRevenue), tone: 'text-violet-700 bg-violet-50 border-violet-200' },
+          { label: 'Net Pay', value: fmt(totalNet), tone: `${totalNet >= 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}` },
+        ].map(card => (
+          <div key={card.label} className={`rounded-xl border p-4 ${card.tone}`}>
+            <p className="text-xs opacity-70">{card.label}</p>
+            <p className="mt-1 text-lg font-bold">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {latestTrip && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Latest Ride</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {latestTrip.originCustomer || 'Origin Customer'} to {latestTrip.destCustomer || 'Destination Customer'}
+              </p>
+              <p className="text-sm text-gray-600">{tripOrigin(latestTrip)} to {tripDest(latestTrip)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-blue-600">Driver</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {drivers.find(d => d.driverId === latestTrip.driverId)?.name || latestTrip.driverId || 'Unassigned'}
+              </p>
+              <p className="text-xs text-gray-500">{latestTrip.commodity || 'Goods'} {latestTrip.tons ? `· ${latestTrip.tons} tons` : ''}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trip history */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-gray-800">Ride History</h3>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">From</label>
+            <input type="date" value={from} onChange={e => setFrom(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            <label className="text-xs text-gray-500">To</label>
+            <input type="date" value={to} onChange={e => setTo(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            {(from || to) && (
+              <button onClick={() => { setFrom(''); setTo('') }} className="text-xs text-blue-600 hover:underline">Clear</button>
+            )}
+          </div>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ride</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Driver</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Goods</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Revenue</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {vehicleTrips.map(t => {
+              const tripDriver = drivers.find(d => d.driverId === t.driverId)
+              return (
+                <tr key={t.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
+                    {new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </td>
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-gray-900 text-xs">
+                      {(t.originCustomer || tripOrigin(t) || 'Origin')} to {(t.destCustomer || tripDest(t) || 'Destination')}
+                    </p>
+                    <p className="text-xs text-gray-400">{tripOrigin(t)} to {tripDest(t)}</p>
+                  </td>
+                  <td className="px-5 py-3 hidden sm:table-cell">
+                    {tripDriver ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar src={tripDriver.avatar} name={tripDriver.name} size="sm" color="emerald" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-800">{tripDriver.name}</p>
+                          <p className="text-xs text-gray-400 font-mono">{tripDriver.driverId}</p>
+                        </div>
+                      </div>
+                    ) : <span className="text-xs text-gray-400">—</span>}
+                  </td>
+                  <td className="px-5 py-3 hidden md:table-cell">
+                    <p className="text-xs font-medium text-gray-800">{t.commodity || '—'}</p>
+                    <p className="text-xs text-gray-400">{t.tons ? `${t.tons} tons` : '—'}</p>
+                  </td>
+                  <td className="px-5 py-3 hidden md:table-cell text-right font-medium text-gray-900">
+                    {fmt(tripRevenue(t))}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[t.status]}`}>
+                      {t.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+            {vehicleTrips.length === 0 && (
+              <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">No rides found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 const VEHICLE_TYPES = ['Truck', 'Van', 'Pickup', 'Tanker', 'Trailer', 'Bus']
 const MAKES = ['Tata', 'Mahindra', 'Ashok Leyland', 'Eicher', 'BharatBenz', 'Other']
@@ -134,7 +336,7 @@ function VehicleForm({ onSave, onClose, existing }) {
   )
 }
 
-function VehiclesTable({ vehicles, drivers, label, onEdit, onToggle, onDeassign }) {
+function VehiclesTable({ vehicles, drivers, label, onView, onEdit, onToggle, onDeassign }) {
   if (vehicles.length === 0) return null
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -188,6 +390,9 @@ function VehiclesTable({ vehicles, drivers, label, onEdit, onToggle, onDeassign 
                 <td className="px-4 py-3"><Badge status={v.status} /></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => onView(v)} className="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-600 font-medium">
+                      <Eye size={13} /> View
+                    </button>
                     <button onClick={() => onEdit(v)} className="text-xs text-blue-600 hover:underline font-medium">Edit</button>
                     {v.assignedDriver && (
                       <button onClick={() => onDeassign(v.assignedDriver)}
@@ -208,7 +413,9 @@ function VehiclesTable({ vehicles, drivers, label, onEdit, onToggle, onDeassign 
 }
 
 export default function Vehicles() {
-  const { vehicles, setVehicles, drivers, deassignVehicle } = useData()
+  const { vehicles, setVehicles, drivers, setDrivers, trips, setTrips, deassignVehicle } = useData()
+  const [view, setView] = useState('list')
+  const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -221,23 +428,58 @@ export default function Vehicles() {
   const assigned = filtered.filter(v => v.assignedDriver)
   const unassigned = filtered.filter(v => !v.assignedDriver)
 
-  const handleSave = (form) => {
-    if (editing) {
-      setVehicles(vs => vs.map(v => v.id === editing.id ? { ...v, ...form } : v))
-    } else {
-      const isDup = vehicles.some(v => v.vehicleNumber === form.vehicleNumber)
-      if (isDup) { alert('Vehicle number already exists'); return }
-      setVehicles(vs => [...vs, { ...form, id: Date.now(), assignedDriver: null }])
-    }
+  const closeModal = () => {
     setShowModal(false)
     setEditing(null)
+  }
+
+  const handleSave = (form) => {
+    const isDup = vehicles.some(v => v.vehicleNumber === form.vehicleNumber && v.id !== editing?.id)
+    if (isDup) { alert('Vehicle number already exists'); return }
+
+    if (editing) {
+      const oldVehicleNumber = editing.vehicleNumber
+      setVehicles(vs => vs.map(v => v.id === editing.id ? { ...v, ...form } : v))
+      if (oldVehicleNumber !== form.vehicleNumber) {
+        setDrivers(ds => ds.map(d =>
+          d.assignedVehicle === oldVehicleNumber ? { ...d, assignedVehicle: form.vehicleNumber } : d
+        ))
+        setTrips(ts => ts.map(t =>
+          t.vehicleNumber === oldVehicleNumber ? { ...t, vehicleNumber: form.vehicleNumber } : t
+        ))
+      }
+    } else {
+      setVehicles(vs => [...vs, { ...form, id: Date.now(), assignedDriver: null }])
+    }
+    closeModal()
   }
 
   const toggleStatus = (id) =>
     setVehicles(vs => vs.map(v => v.id === id ? { ...v, status: v.status === 'active' ? 'inactive' : 'active' } : v))
 
+  if (view === 'detail' && selected) {
+    const live = vehicles.find(v => v.id === selected.id) || selected
+    return (
+      <>
+        <VehicleDetail
+          vehicle={live}
+          drivers={drivers}
+          trips={trips}
+          onBack={() => setView('list')}
+          onEdit={() => { setEditing(live); setShowModal(true) }}
+        />
+        {showModal && (
+          <Modal title={editing ? 'Edit Vehicle' : 'Add Vehicle'} onClose={closeModal}>
+            <VehicleForm onSave={handleSave} onClose={closeModal} existing={editing} />
+          </Modal>
+        )}
+      </>
+    )
+  }
+
   const tableProps = {
     drivers,
+    onView: (v) => { setSelected(v); setView('detail') },
     onEdit: (v) => { setEditing(v); setShowModal(true) },
     onToggle: toggleStatus,
     onDeassign: (driverId) => deassignVehicle(driverId),
@@ -273,8 +515,8 @@ export default function Vehicles() {
       )}
 
       {showModal && (
-        <Modal title={editing ? 'Edit Vehicle' : 'Add Vehicle'} onClose={() => { setShowModal(false); setEditing(null) }}>
-          <VehicleForm onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null) }} existing={editing} />
+        <Modal title={editing ? 'Edit Vehicle' : 'Add Vehicle'} onClose={closeModal}>
+          <VehicleForm onSave={handleSave} onClose={closeModal} existing={editing} />
         </Modal>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Plus, Search, ArrowLeft, Eye, Camera, X, Truck } from 'lucide-react'
-import { generateDriverId, tripRevenue } from '../data/store'
+import { generateDriverId, tripRevenue, tripOrigin, tripDest } from '../data/store'
 import { useData } from '../context/DataContext'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
@@ -287,8 +287,8 @@ function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDea
                   {new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                 </td>
                 <td className="px-5 py-3">
-                  <p className="font-medium text-gray-900 text-xs">{t.origin}</p>
-                  <p className="text-xs text-gray-400">{t.destination}</p>
+                  <p className="font-medium text-gray-900 text-xs">{tripOrigin(t)}</p>
+                  <p className="text-xs text-gray-400">{tripDest(t)}</p>
                 </td>
                 <td className="px-5 py-3 hidden sm:table-cell">
                   <span className="font-mono text-xs text-gray-600">{t.vehicleNumber || '—'}</span>
@@ -431,15 +431,23 @@ export default function Drivers() {
   if (view === 'detail' && selected) {
     const live = drivers.find(d => d.id === selected.id) || selected
     return (
-      <DriverDetail
-        driver={live}
-        trips={trips}
-        vehicles={vehicles}
-        onBack={() => setView('list')}
-        onEdit={() => { setEditing(live); setShowModal(true) }}
-        onAssign={(driverId, vehicleNumber) => assignVehicle(driverId, vehicleNumber)}
-        onDeassign={() => deassignVehicle(live.driverId)}
-      />
+      <>
+        <DriverDetail
+          driver={live}
+          trips={trips}
+          vehicles={vehicles}
+          onBack={() => setView('list')}
+          onEdit={() => { setEditing(live); setShowModal(true) }}
+          onAssign={(driverId, vehicleNumber) => assignVehicle(driverId, vehicleNumber)}
+          onDeassign={() => deassignVehicle(live.driverId)}
+        />
+        {showModal && (
+          <Modal title={editing ? 'Edit Driver' : 'Add Driver'} onClose={() => { setShowModal(false); setEditing(null) }}>
+            <DriverForm onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null) }}
+              existing={editing} nextId={generateDriverId(drivers)} />
+          </Modal>
+        )}
+      </>
     )
   }
 
