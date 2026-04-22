@@ -5,6 +5,7 @@ import Vehicles from './pages/Vehicles'
 import Drivers from './pages/Drivers'
 import Management from './pages/Management'
 import Trips from './pages/Trips'
+import Profile from './pages/Profile'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="vehicles" element={<Vehicles />} />
           <Route path="drivers" element={<Drivers />} />
           <Route path="management" element={<Management />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </BrowserRouter>

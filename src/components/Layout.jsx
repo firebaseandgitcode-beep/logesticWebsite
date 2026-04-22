@@ -1,5 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Truck, Users, UserCog, Menu, Route } from 'lucide-react'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Truck, Users, UserCog, Menu, Route, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
@@ -57,9 +58,19 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="px-6 py-4 border-t border-gray-200 text-xs text-gray-400">
-          v0.1.0 · static
-        </div>
+        <button
+          onClick={() => { navigate('/profile'); setSidebarOpen(false) }}
+          className="flex items-center gap-3 px-4 py-3 mx-3 mb-3 rounded-lg hover:bg-gray-100 transition-colors text-left group"
+        >
+          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+            <span className="text-white text-xs font-bold">SG</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">Sujay G P</p>
+            <p className="text-xs text-gray-400 truncate">Super Admin</p>
+          </div>
+          <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
+        </button>
       </aside>
 
       {/* Main */}
