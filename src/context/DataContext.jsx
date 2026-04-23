@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import { useAuth } from './AuthContext'
+import { initialManagement } from '../data/store'
 
 const DataContext = createContext(null)
 
@@ -47,7 +48,8 @@ export function DataProvider({ children }) {
 
   const loadManagement = useCallback(async () => {
     const data = await api.getManagement()
-    setManagement(data.management || [])
+    const staff = data.management || data.staff || []
+    setManagement(staff.length ? staff : initialManagement)
   }, [])
 
   const loadTrips = useCallback(async () => {
@@ -65,6 +67,7 @@ export function DataProvider({ children }) {
 
   useEffect(() => {
     if (!currentUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVehicles([])
       setDrivers([])
       setManagement([])
@@ -73,7 +76,7 @@ export function DataProvider({ children }) {
     }
     setLoading(true)
     refresh().finally(() => setLoading(false))
-  }, [currentUser?.id]) // re-fetch whenever the logged-in user changes
+  }, [currentUser, refresh]) // re-fetch whenever the logged-in user changes
 
   // ─── Upload helper ─────────────────────────────────────────────────────────
 
@@ -192,4 +195,5 @@ export function DataProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useData = () => useContext(DataContext)

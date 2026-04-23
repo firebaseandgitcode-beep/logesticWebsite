@@ -64,8 +64,8 @@ function MemberForm({ onSave, onClose, existing, nextId }) {
     if (changePw && form.password !== form.confirmPassword) {
       setErr('Passwords do not match'); return
     }
-    if (!existing && form.password.length < 6) {
-      setErr('Password must be at least 6 characters'); return
+    if (!existing && form.password.length < 8) {
+      setErr('Password must be at least 8 characters'); return
     }
     const saved = { ...form }
     if (!changePw && existing) saved.password = existing.password
@@ -363,10 +363,10 @@ export default function Management() {
   const [editing, setEditing] = useState(null)
 
   const filtered = management.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.managerId.toLowerCase().includes(search.toLowerCase()) ||
-    m.role.toLowerCase().includes(search.toLowerCase()) ||
-    m.username.toLowerCase().includes(search.toLowerCase())
+    (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.managerId || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.role || '').toLowerCase().includes(search.toLowerCase()) ||
+    (m.username || '').toLowerCase().includes(search.toLowerCase())
   )
 
   const handleSave = async (form) => {
@@ -397,12 +397,27 @@ export default function Management() {
   if (view === 'detail' && selected) {
     const live = management.find(m => m.id === selected.id) || selected
     return (
-      <MemberDetail
-        member={live}
-        history={jobHistory}
-        onBack={() => setView('list')}
-        onEdit={() => { setEditing(live); setShowModal(true) }}
-      />
+      <>
+        <MemberDetail
+          member={live}
+          history={jobHistory}
+          onBack={() => setView('list')}
+          onEdit={() => { setEditing(live); setShowModal(true) }}
+        />
+        {showModal && (
+          <Modal
+            title={editing ? 'Edit Member' : 'Add Management Member'}
+            onClose={() => { setShowModal(false); setEditing(null) }}
+          >
+            <MemberForm
+              onSave={handleSave}
+              onClose={() => { setShowModal(false); setEditing(null) }}
+              existing={editing}
+              nextId="Auto-generated"
+            />
+          </Modal>
+        )}
+      </>
     )
   }
 

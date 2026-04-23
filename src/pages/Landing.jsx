@@ -1,3 +1,4 @@
+import { createElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Truck, Route, Users, BarChart3, Shield, Bell } from 'lucide-react'
 
@@ -123,13 +124,13 @@ export default function Landing() {
           From the moment a trip is created to the final settlement, mylogestic handles it all.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map(({ icon: Icon, title, desc, color }) => (
+          {features.map(({ icon, title, desc, color }) => (
             <div
               key={title}
               className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow"
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color} mb-4`}>
-                <Icon size={18} />
+                {createElement(icon, { size: 18 })}
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
               <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>

@@ -234,6 +234,10 @@ function DocBadge({ label, expiry }) {
 
 const fieldCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
 
+function normalizeVehicleNumber(value) {
+  return (value || '').toUpperCase().replace(/\s+/g, '')
+}
+
 function VehicleForm({ onSave, onClose, existing }) {
   const [form, setForm] = useState(existing || {
     vehicleNumber: '', vehicleType: '', make: '', type: '',
@@ -250,7 +254,7 @@ function VehicleForm({ onSave, onClose, existing }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-700 mb-1">Vehicle Number *</label>
-          <input required value={form.vehicleNumber} onChange={e => set('vehicleNumber', e.target.value.toUpperCase())}
+          <input required value={form.vehicleNumber} onChange={e => set('vehicleNumber', normalizeVehicleNumber(e.target.value))}
             placeholder="MH12AB1234" className={`${fieldCls} uppercase`} />
         </div>
         <div>
@@ -420,9 +424,11 @@ export default function Vehicles() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
 
+  const searchText = search.toLowerCase()
+  const normalizedSearch = normalizeVehicleNumber(search)
   const filtered = vehicles.filter(v =>
-    v.vehicleNumber.toLowerCase().includes(search.toLowerCase()) ||
-    v.make.toLowerCase().includes(search.toLowerCase())
+    normalizeVehicleNumber(v.vehicleNumber).includes(normalizedSearch) ||
+    (v.make || '').toLowerCase().includes(searchText)
   )
 
   const assigned = filtered.filter(v => v.assignedDriver)
@@ -434,14 +440,17 @@ export default function Vehicles() {
   }
 
   const handleSave = async (form) => {
-    const isDup = vehicles.some(v => v.vehicleNumber === form.vehicleNumber && v.id !== editing?.id)
+    const normalizedForm = { ...form, vehicleNumber: normalizeVehicleNumber(form.vehicleNumber) }
+    const isDup = vehicles.some(v =>
+      normalizeVehicleNumber(v.vehicleNumber) === normalizedForm.vehicleNumber && v.id !== editing?.id
+    )
     if (isDup) { alert('Vehicle number already exists'); return }
 
     try {
       if (editing) {
-        await updateVehicle(editing.id, form)
+        await updateVehicle(editing.id, normalizedForm)
       } else {
-        await createVehicle(form)
+        await createVehicle(normalizedForm)
       }
       closeModal()
     } catch (err) {

@@ -1,6 +1,9 @@
 import { useState, useRef } from 'react'
 import { Plus, Search, ArrowLeft, Eye, Camera, X, Truck } from 'lucide-react'
-import { tripRevenue, tripOrigin, tripDest } from '../data/store'
+import {
+  tripRevenue, tripOrigin, tripDest, tripDriverSalary, tripDriverAdvance,
+  tripDriverDue, tripDriverPaid,
+} from '../data/store'
 import { useData } from '../context/DataContext'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
@@ -167,7 +170,7 @@ function DriverForm({ onSave, onClose, existing, nextId }) {
 
 // ─── Driver Detail View ───────────────────────────────────────────────────────
 
-function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDeassign }) {
+function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDeassign, onMarkDuePaid }) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [showAssign, setShowAssign] = useState(false)
@@ -180,8 +183,11 @@ function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDea
     if (to && t.date > to) return false
     return true
   })
+  const totalSalary = driverTrips.reduce((sum, trip) => sum + tripDriverSalary(trip), 0)
+  const totalPaid = driverTrips.reduce((sum, trip) => sum + tripDriverPaid(trip), 0)
+  const totalDue = driverTrips.reduce((sum, trip) => sum + tripDriverDue(trip), 0)
 
-  const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+  const fmt = (n) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
 
   const statusStyle = {
     completed: 'bg-green-100 text-green-700',
@@ -254,6 +260,19 @@ function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDea
         )}
       </div>
 
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total Earning', value: fmt(totalSalary), cls: 'text-blue-700 bg-blue-50 border-blue-200' },
+          { label: 'Paid', value: fmt(totalPaid), cls: 'text-green-700 bg-green-50 border-green-200' },
+          { label: 'Due', value: fmt(totalDue), cls: totalDue > 0 ? 'text-red-700 bg-red-50 border-red-200' : 'text-gray-700 bg-gray-50 border-gray-200' },
+        ].map(card => (
+          <div key={card.label} className={`rounded-xl border p-4 ${card.cls}`}>
+            <p className="text-xs opacity-70">{card.label}</p>
+            <p className="text-lg font-bold mt-0.5">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Trip History */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
@@ -276,35 +295,55 @@ function DriverDetail({ driver, trips, vehicles, onBack, onEdit, onAssign, onDea
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Route</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Vehicle</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Revenue</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Salary</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Advance</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Due</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {driverTrips.map(t => (
-              <tr key={t.id} className="hover:bg-gray-50">
-                <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
-                  {new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
-                </td>
-                <td className="px-5 py-3">
-                  <p className="font-medium text-gray-900 text-xs">{tripOrigin(t)}</p>
-                  <p className="text-xs text-gray-400">{tripDest(t)}</p>
-                </td>
-                <td className="px-5 py-3 hidden sm:table-cell">
-                  <span className="font-mono text-xs text-gray-600">{t.vehicleNumber || '—'}</span>
-                </td>
-                <td className="px-5 py-3 hidden md:table-cell text-right font-medium text-gray-900">
-                  {fmt(tripRevenue(t))}
-                </td>
-                <td className="px-5 py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusStyle[t.status]}`}>
-                    {t.status.replace('_', ' ')}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {driverTrips.map(t => {
+              const due = tripDriverDue(t)
+              return (
+                <tr key={t.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
+                    {new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                  </td>
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-gray-900 text-xs">{tripOrigin(t)}</p>
+                    <p className="text-xs text-gray-400">{tripDest(t)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{t.commodity || '—'} · Revenue {fmt(tripRevenue(t))}</p>
+                  </td>
+                  <td className="px-5 py-3 hidden sm:table-cell">
+                    <span className="font-mono text-xs text-gray-600">{t.vehicleNumber || '—'}</span>
+                  </td>
+                  <td className="px-5 py-3 hidden md:table-cell text-right font-medium text-gray-900">
+                    {fmt(tripDriverSalary(t))}
+                  </td>
+                  <td className="px-5 py-3 hidden lg:table-cell text-right font-medium text-gray-600">
+                    {fmt(tripDriverAdvance(t))}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <p className={`text-sm font-semibold ${due > 0 ? 'text-red-600' : 'text-green-600'}`}>{fmt(due)}</p>
+                    {due > 0 ? (
+                      <button onClick={() => onMarkDuePaid(t)}
+                        className="mt-1 text-xs text-blue-600 hover:underline font-medium">
+                        Mark due paid
+                      </button>
+                    ) : (
+                      <span className="text-xs text-green-600">Paid</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusStyle[t.status]}`}>
+                      {t.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
             {driverTrips.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400 text-sm">No trips found</td></tr>
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">No trips found</td></tr>
             )}
           </tbody>
         </table>
@@ -396,7 +435,7 @@ function DriversTable({ drivers, vehicles, label, onView, onEdit, onToggle, onAs
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Drivers() {
-  const { drivers, vehicles, trips, createDriver, updateDriver, assignVehicle, deassignVehicle } = useData()
+  const { drivers, vehicles, trips, createDriver, updateDriver, assignVehicle, deassignVehicle, updateTrip } = useData()
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -404,10 +443,11 @@ export default function Drivers() {
   const [editing, setEditing] = useState(null)
   const [assignTarget, setAssignTarget] = useState(null)
 
+  const searchText = search.toLowerCase()
   const filtered = drivers.filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    d.driverId.toLowerCase().includes(search.toLowerCase()) ||
-    d.phone.includes(search)
+    (d.name || '').toLowerCase().includes(searchText) ||
+    (d.driverId || '').toLowerCase().includes(searchText) ||
+    (d.phone || '').includes(search)
   )
 
   const assigned = filtered.filter(d => d.assignedVehicle)
@@ -437,6 +477,22 @@ export default function Drivers() {
     }
   }
 
+  const markDuePaid = async (trip) => {
+    const due = tripDriverDue(trip)
+    if (due <= 0) return
+    try {
+      await updateTrip(trip.id, {
+        driverPayment: {
+          ...(trip.driverPayment || {}),
+          duePaid: true,
+          duePaidAt: new Date().toISOString(),
+        },
+      })
+    } catch (err) {
+      alert(err.message || 'Failed to mark due paid')
+    }
+  }
+
   if (view === 'detail' && selected) {
     const live = drivers.find(d => d.id === selected.id) || selected
     return (
@@ -449,6 +505,7 @@ export default function Drivers() {
           onEdit={() => { setEditing(live); setShowModal(true) }}
           onAssign={(driverId, vehicleNumber) => assignVehicle(driverId, vehicleNumber)}
           onDeassign={() => deassignVehicle(live.driverId)}
+          onMarkDuePaid={markDuePaid}
         />
         {showModal && (
           <Modal title={editing ? 'Edit Driver' : 'Add Driver'} onClose={() => { setShowModal(false); setEditing(null) }}>

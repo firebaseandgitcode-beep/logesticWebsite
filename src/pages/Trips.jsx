@@ -1,8 +1,9 @@
-import { useState, useMemo, useRef } from 'react'
+import { createElement, useState, useMemo, useRef } from 'react'
 import { Plus, Search, ArrowLeft, Eye, Pencil, Trash2, Upload, CheckCircle2,
   Fuel, Truck, DollarSign, TrendingUp, Route, Package, ChevronDown, FileText } from 'lucide-react'
 import {
   tripRevenue, tripFuelCost, tripAllExpenses, tripNetPay, tripOrigin, tripDest, tripStatus,
+  tripDriverSalary,
 } from '../data/store'
 import { useData } from '../context/DataContext'
 import Badge from '../components/Badge'
@@ -46,7 +47,7 @@ function emptyTrip() {
     commodity: '', tons: '',
     driverId: '', vehicleNumber: '',
     documents: [], notes: '', verifiedCreate: false,
-    otherExpenses: [], driverPayment: { totalAmount: '', advance: '' },
+    otherExpenses: [], driverPayment: { totalAmount: '', advance: '', duePaid: false, duePaidAt: null },
     fuelEntries: [], fuelVerified: false,
     rateType: 'freight', costPerTon: '', flatAmount: '',
     tollExpense: '', managedExpenses: [],
@@ -534,16 +535,8 @@ function ManageTripTab({ form, set }) {
 
 // ─── Trip Detail View ─────────────────────────────────────────────────────────
 
-function TripDetail({ trip, drivers, onBack, onEdit }) {
-  const driver = drivers.find(d => d.driverId === trip.driverId)
-  const fuelTotal = tripFuelCost(trip)
-  const rev = tripRevenue(trip)
-  const net = tripNetPay(trip)
-  const balance = (Number(trip.driverPayment?.totalAmount) || 0) - (Number(trip.driverPayment?.advance) || 0)
-  const createExpenseTotal = (trip.otherExpenses || []).reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
-  const manageExpenseTotal = (trip.managedExpenses || []).reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
-
-  const Section = ({ title, children }) => (
+function DetailSection({ title, children }) {
+  return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
@@ -551,17 +544,32 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
       <div className="px-5 py-4">{children}</div>
     </div>
   )
+}
 
-  const Row = ({ label, value, mono = false }) => (
+function DetailRow({ label, value, mono = false }) {
+  return (
     <div className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0">
       <span className="text-xs text-gray-400 shrink-0 w-32">{label}</span>
       <span className={`text-sm text-gray-800 text-right ${mono ? 'font-mono' : 'font-medium'}`}>{value || '—'}</span>
     </div>
   )
+}
 
-  const Chip = ({ ok }) => ok
+function VerificationChip({ ok }) {
+  return ok
     ? <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><CheckCircle2 size={11} />Verified</span>
     : <span className="text-xs text-gray-400">Not verified</span>
+}
+
+function TripDetail({ trip, drivers, onBack, onEdit }) {
+  const driver = drivers.find(d => d.driverId === trip.driverId)
+  const fuelTotal = tripFuelCost(trip)
+  const rev = tripRevenue(trip)
+  const net = tripNetPay(trip)
+  const pendingBalance = (Number(trip.driverPayment?.totalAmount) || 0) - (Number(trip.driverPayment?.advance) || 0)
+  const balance = trip.driverPayment?.duePaid ? 0 : pendingBalance
+  const createExpenseTotal = (trip.otherExpenses || []).reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
+  const manageExpenseTotal = (trip.managedExpenses || []).reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0)
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -583,7 +591,7 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
           { label: 'Revenue', value: fmt(rev), color: 'text-blue-700 bg-blue-50 border-blue-200' },
           { label: 'Net Pay', value: fmt(net), color: `${net >= 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}` },
           { label: 'Fuel Cost', value: fmt(fuelTotal), color: 'text-orange-700 bg-orange-50 border-orange-200' },
-          { label: 'Expenses', value: fmt(tripAllExpenses(trip)), color: 'text-violet-700 bg-violet-50 border-violet-200' },
+          { label: 'Expenses + Driver', value: fmt(tripAllExpenses(trip)), color: 'text-violet-700 bg-violet-50 border-violet-200' },
         ].map(({ label, value, color }) => (
           <div key={label} className={`rounded-xl border p-4 ${color}`}>
             <p className="text-xs opacity-70">{label}</p>
@@ -593,22 +601,22 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
       </div>
 
       {/* Part 1 */}
-      <Section title="1. Create Trip">
+      <DetailSection title="1. Create Trip">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
           <div>
-            <Row label="Date" value={new Date(trip.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
-            <Row label="Origin" value={`${trip.originCustomer} — ${tripOrigin(trip)}`} />
-            <Row label="Destination" value={`${trip.destCustomer} — ${tripDest(trip)}`} />
-            <Row label="Commodity" value={trip.commodity} />
-            <Row label="Tons" value={trip.tons ? `${trip.tons} tons` : null} />
+            <DetailRow label="Date" value={new Date(trip.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
+            <DetailRow label="Origin" value={`${trip.originCustomer} — ${tripOrigin(trip)}`} />
+            <DetailRow label="Destination" value={`${trip.destCustomer} — ${tripDest(trip)}`} />
+            <DetailRow label="Commodity" value={trip.commodity} />
+            <DetailRow label="Tons" value={trip.tons ? `${trip.tons} tons` : null} />
           </div>
           <div>
-            <Row label="Driver" value={driver ? `${driver.name} (${driver.driverId})` : trip.driverId} />
-            <Row label="Vehicle" value={trip.vehicleNumber} mono />
-            <Row label="Notes" value={trip.notes} />
+            <DetailRow label="Driver" value={driver ? `${driver.name} (${driver.driverId})` : trip.driverId} />
+            <DetailRow label="Vehicle" value={trip.vehicleNumber} mono />
+            <DetailRow label="Notes" value={trip.notes} />
             <div className="flex items-start justify-between py-1.5">
               <span className="text-xs text-gray-400 w-32">Verification</span>
-              <Chip ok={trip.verifiedCreate} />
+              <VerificationChip ok={trip.verifiedCreate} />
             </div>
           </div>
         </div>
@@ -617,6 +625,7 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
             <div><p className="text-xs text-blue-500">Total Pay</p><p className="font-bold text-blue-800">{fmt(trip.driverPayment.totalAmount)}</p></div>
             <div><p className="text-xs text-blue-500">Advance</p><p className="font-bold text-blue-800">{fmt(trip.driverPayment.advance)}</p></div>
             <div><p className="text-xs text-blue-500">Balance</p><p className={`font-bold ${balance < 0 ? 'text-red-600' : 'text-blue-800'}`}>{fmt(balance)}</p></div>
+            <div><p className="text-xs text-blue-500">Due Status</p><p className={`font-bold ${trip.driverPayment?.duePaid ? 'text-green-700' : 'text-blue-800'}`}>{trip.driverPayment?.duePaid ? 'Paid' : 'Pending'}</p></div>
           </div>
         )}
         {(trip.documents || []).length > 0 && (
@@ -666,10 +675,10 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
             No create-trip expenses recorded
           </div>
         )}
-      </Section>
+      </DetailSection>
 
       {/* Part 2 */}
-      <Section title={`2. Fuel Details (${(trip.fuelEntries || []).length} entries)`}>
+      <DetailSection title={`2. Fuel Details (${(trip.fuelEntries || []).length} entries)`}>
         {(trip.fuelEntries || []).length === 0
           ? <p className="text-sm text-gray-400">No fuel entries recorded</p>
           : (
@@ -701,24 +710,25 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
         }
         <div className="mt-2 flex items-center justify-between py-1.5">
           <span className="text-xs text-gray-400">Fuel verification</span>
-          <Chip ok={trip.fuelVerified} />
+          <VerificationChip ok={trip.fuelVerified} />
         </div>
-      </Section>
+      </DetailSection>
 
       {/* Part 3 */}
-      <Section title="3. Manage Trip">
+      <DetailSection title="3. Manage Trip">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
           <div>
-            <Row label="Rate Type" value={trip.rateType === 'flat' ? 'Flat Rate' : 'Freight Rate'} />
-            {trip.rateType === 'freight' && <Row label="Cost per Ton" value={`₹${trip.costPerTon}`} />}
-            {trip.rateType === 'flat' && <Row label="Flat Amount" value={fmt(trip.flatAmount)} />}
-            <Row label="Revenue" value={fmt(rev)} />
-            <Row label="Toll Expense" value={fmt(trip.tollExpense)} />
+            <DetailRow label="Rate Type" value={trip.rateType === 'flat' ? 'Flat Rate' : 'Freight Rate'} />
+            {trip.rateType === 'freight' && <DetailRow label="Cost per Ton" value={`₹${trip.costPerTon}`} />}
+            {trip.rateType === 'flat' && <DetailRow label="Flat Amount" value={fmt(trip.flatAmount)} />}
+            <DetailRow label="Revenue" value={fmt(rev)} />
+            <DetailRow label="Driver Salary" value={fmt(tripDriverSalary(trip))} />
+            <DetailRow label="Toll Expense" value={fmt(trip.tollExpense)} />
           </div>
           <div>
-            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Manage verified</span><Chip ok={trip.verifiedManage} /></div>
-            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Trip details verified</span><Chip ok={trip.verifiedTripDetails} /></div>
-            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Fuel details verified</span><Chip ok={trip.verifiedFuelDetails} /></div>
+            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Manage verified</span><VerificationChip ok={trip.verifiedManage} /></div>
+            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Trip details verified</span><VerificationChip ok={trip.verifiedTripDetails} /></div>
+            <div className="py-1.5 flex items-start justify-between border-b border-gray-50"><span className="text-xs text-gray-400 w-36">Fuel details verified</span><VerificationChip ok={trip.verifiedFuelDetails} /></div>
           </div>
         </div>
         {(trip.managedExpenses || []).length > 0 && (
@@ -750,7 +760,7 @@ function TripDetail({ trip, drivers, onBack, onEdit }) {
             No managed expenses recorded
           </div>
         )}
-      </Section>
+      </DetailSection>
     </div>
   )
 }
@@ -811,11 +821,11 @@ function TripForm({ existing, drivers, vehicles, onSave, onBack }) {
 
 // ─── Trips List ───────────────────────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon, label, value, color }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-        <Icon size={16} className="text-white" />
+        {createElement(icon, { size: 16, className: 'text-white' })}
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-500 truncate">{label}</p>

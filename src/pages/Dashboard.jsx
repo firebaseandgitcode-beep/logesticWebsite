@@ -1,12 +1,13 @@
+import { createElement } from 'react'
 import { Truck, Users, UserCog, AlertTriangle } from 'lucide-react'
 import { isExpired, isExpiringSoon } from '../data/store'
 import { useData } from '../context/DataContext'
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon, label, value, color }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4">
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>
-        <Icon size={22} className="text-white" />
+        {createElement(icon, { size: 22, className: 'text-white' })}
       </div>
       <div>
         <p className="text-sm text-gray-500">{label}</p>

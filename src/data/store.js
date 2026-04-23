@@ -197,11 +197,28 @@ export function tripFuelCost(trip) {
 export function tripAllExpenses(trip) {
   const e1 = (trip.otherExpenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const e2 = (trip.managedExpenses || []).reduce((s, e) => s + (Number(e.amount) || 0), 0)
-  return e1 + e2 + (Number(trip.tollExpense) || 0)
+  return e1 + e2 + (Number(trip.tollExpense) || 0) + tripDriverSalary(trip)
 }
 
 export function tripNetPay(trip) {
   return tripRevenue(trip) - tripFuelCost(trip) - tripAllExpenses(trip)
+}
+
+export function tripDriverSalary(trip) {
+  return Number(trip.driverPayment?.totalAmount) || 0
+}
+
+export function tripDriverAdvance(trip) {
+  return Number(trip.driverPayment?.advance) || 0
+}
+
+export function tripDriverDue(trip) {
+  if (trip.driverPayment?.duePaid) return 0
+  return Math.max(tripDriverSalary(trip) - tripDriverAdvance(trip), 0)
+}
+
+export function tripDriverPaid(trip) {
+  return tripDriverSalary(trip) - tripDriverDue(trip)
 }
 
 export function tripStatus(form) {

@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Truck, Users, UserCog, Menu, Route, ChevronRight, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { createElement, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
@@ -50,7 +50,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -63,7 +63,7 @@ export default function Layout() {
                 }`
               }
             >
-              <Icon size={18} />
+              {createElement(icon, { size: 18 })}
               {label}
             </NavLink>
           ))}
