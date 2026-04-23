@@ -413,7 +413,7 @@ function VehiclesTable({ vehicles, drivers, label, onView, onEdit, onToggle, onD
 }
 
 export default function Vehicles() {
-  const { vehicles, setVehicles, drivers, setDrivers, trips, setTrips, deassignVehicle } = useData()
+  const { vehicles, drivers, trips, createVehicle, updateVehicle, deassignVehicle } = useData()
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -433,29 +433,31 @@ export default function Vehicles() {
     setEditing(null)
   }
 
-  const handleSave = (form) => {
+  const handleSave = async (form) => {
     const isDup = vehicles.some(v => v.vehicleNumber === form.vehicleNumber && v.id !== editing?.id)
     if (isDup) { alert('Vehicle number already exists'); return }
 
-    if (editing) {
-      const oldVehicleNumber = editing.vehicleNumber
-      setVehicles(vs => vs.map(v => v.id === editing.id ? { ...v, ...form } : v))
-      if (oldVehicleNumber !== form.vehicleNumber) {
-        setDrivers(ds => ds.map(d =>
-          d.assignedVehicle === oldVehicleNumber ? { ...d, assignedVehicle: form.vehicleNumber } : d
-        ))
-        setTrips(ts => ts.map(t =>
-          t.vehicleNumber === oldVehicleNumber ? { ...t, vehicleNumber: form.vehicleNumber } : t
-        ))
+    try {
+      if (editing) {
+        await updateVehicle(editing.id, form)
+      } else {
+        await createVehicle(form)
       }
-    } else {
-      setVehicles(vs => [...vs, { ...form, id: Date.now(), assignedDriver: null }])
+      closeModal()
+    } catch (err) {
+      alert(err.message || 'Failed to save vehicle')
     }
-    closeModal()
   }
 
-  const toggleStatus = (id) =>
-    setVehicles(vs => vs.map(v => v.id === id ? { ...v, status: v.status === 'active' ? 'inactive' : 'active' } : v))
+  const toggleStatus = async (id) => {
+    const v = vehicles.find(v => v.id === id)
+    if (!v) return
+    try {
+      await updateVehicle(id, { status: v.status === 'active' ? 'inactive' : 'active' })
+    } catch (err) {
+      alert(err.message || 'Failed to update status')
+    }
+  }
 
   if (view === 'detail' && selected) {
     const live = vehicles.find(v => v.id === selected.id) || selected

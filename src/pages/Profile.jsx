@@ -1,20 +1,7 @@
 import { useState, useRef } from 'react'
 import { Camera, Save, Lock, Bell, Building2, Mail, Phone, MapPin, User } from 'lucide-react'
-
-const DEFAULT_PROFILE = {
-  name: 'Sujay G P',
-  email: 'sujay@mylogestic.com',
-  phone: '9876543210',
-  role: 'Super Admin',
-  company: 'mylogestic',
-  location: 'Bangalore, KA',
-  avatar: null,
-  notifications: {
-    emailAlerts: true,
-    expiryReminders: true,
-    tripUpdates: false,
-  },
-}
+import { api } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 
 function Section({ title, children }) {
   return (
@@ -43,6 +30,23 @@ const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm foc
 const readonlyCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
 
 export default function Profile() {
+  const { currentUser, updateAvatar } = useAuth()
+
+  const DEFAULT_PROFILE = {
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
+    role: currentUser?.role || 'Super Admin',
+    company: currentUser?.company || '',
+    location: currentUser?.location || '',
+    avatar: currentUser?.avatar || null,
+    notifications: {
+      emailAlerts: true,
+      expiryReminders: true,
+      tripUpdates: false,
+    },
+  }
+
   const [profile, setProfile] = useState(DEFAULT_PROFILE)
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
   const [saved, setSaved] = useState(false)
@@ -60,13 +64,31 @@ export default function Profile() {
     reader.readAsDataURL(file)
   }
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    try {
+      const { user } = await api.updateProfile({
+        name: profile.name,
+        phone: profile.phone,
+        company: profile.company,
+        location: profile.location,
+        avatar: profile.avatar,
+      })
+      // Update localStorage user data
+      const saved = localStorage.getItem('logestic_user')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        localStorage.setItem('logestic_user', JSON.stringify({ ...parsed, ...user }))
+      }
+      if (user?.avatar) updateAvatar(user.avatar)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      alert(err.message || 'Failed to save profile')
+    }
   }
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault()
     if (passwordForm.next !== passwordForm.confirm) {
       setPwMsg('error:Passwords do not match')
@@ -76,9 +98,14 @@ export default function Profile() {
       setPwMsg('error:Password must be at least 8 characters')
       return
     }
-    setPwMsg('success:Password updated successfully')
-    setPasswordForm({ current: '', next: '', confirm: '' })
-    setTimeout(() => setPwMsg(''), 3000)
+    try {
+      await api.updatePassword({ currentPassword: passwordForm.current, newPassword: passwordForm.next })
+      setPwMsg('success:Password updated successfully')
+      setPasswordForm({ current: '', next: '', confirm: '' })
+      setTimeout(() => setPwMsg(''), 3000)
+    } catch (err) {
+      setPwMsg(`error:${err.message || 'Failed to update password'}`)
+    }
   }
 
   const initials = profile.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()

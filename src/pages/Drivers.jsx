@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Plus, Search, ArrowLeft, Eye, Camera, X, Truck } from 'lucide-react'
-import { generateDriverId, tripRevenue, tripOrigin, tripDest } from '../data/store'
+import { tripRevenue, tripOrigin, tripDest } from '../data/store'
 import { useData } from '../context/DataContext'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
@@ -396,7 +396,7 @@ function DriversTable({ drivers, vehicles, label, onView, onEdit, onToggle, onAs
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Drivers() {
-  const { drivers, setDrivers, vehicles, trips, assignVehicle, deassignVehicle } = useData()
+  const { drivers, vehicles, trips, createDriver, updateDriver, assignVehicle, deassignVehicle } = useData()
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -413,20 +413,29 @@ export default function Drivers() {
   const assigned = filtered.filter(d => d.assignedVehicle)
   const unassigned = filtered.filter(d => !d.assignedVehicle)
 
-  const handleSave = (form) => {
-    if (editing) {
-      setDrivers(ds => ds.map(d => d.id === editing.id ? { ...d, ...form } : d))
-      if (selected?.id === editing.id) setSelected(prev => ({ ...prev, ...form }))
-    } else {
-      const newId = generateDriverId(drivers)
-      setDrivers(ds => [...ds, { ...form, id: Date.now(), driverId: newId, assignedVehicle: null }])
+  const handleSave = async (form) => {
+    try {
+      if (editing) {
+        await updateDriver(editing.id, form)
+      } else {
+        await createDriver(form)
+      }
+      setShowModal(false)
+      setEditing(null)
+    } catch (err) {
+      alert(err.message || 'Failed to save driver')
     }
-    setShowModal(false)
-    setEditing(null)
   }
 
-  const toggleStatus = (id) =>
-    setDrivers(ds => ds.map(d => d.id === id ? { ...d, status: d.status === 'active' ? 'inactive' : 'active' } : d))
+  const toggleStatus = async (id) => {
+    const d = drivers.find(d => d.id === id)
+    if (!d) return
+    try {
+      await updateDriver(id, { status: d.status === 'active' ? 'inactive' : 'active' })
+    } catch (err) {
+      alert(err.message || 'Failed to update status')
+    }
+  }
 
   if (view === 'detail' && selected) {
     const live = drivers.find(d => d.id === selected.id) || selected
@@ -444,7 +453,7 @@ export default function Drivers() {
         {showModal && (
           <Modal title={editing ? 'Edit Driver' : 'Add Driver'} onClose={() => { setShowModal(false); setEditing(null) }}>
             <DriverForm onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null) }}
-              existing={editing} nextId={generateDriverId(drivers)} />
+              existing={editing} nextId="Auto-generated" />
           </Modal>
         )}
       </>
@@ -492,7 +501,7 @@ export default function Drivers() {
       {showModal && (
         <Modal title={editing ? 'Edit Driver' : 'Add Driver'} onClose={() => { setShowModal(false); setEditing(null) }}>
           <DriverForm onSave={handleSave} onClose={() => { setShowModal(false); setEditing(null) }}
-            existing={editing} nextId={generateDriverId(drivers)} />
+            existing={editing} nextId="Auto-generated" />
         </Modal>
       )}
 

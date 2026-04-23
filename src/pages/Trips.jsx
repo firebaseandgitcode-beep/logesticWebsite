@@ -826,7 +826,7 @@ function StatCard({ icon: Icon, label, value, color }) {
 }
 
 export default function Trips() {
-  const { trips, setTrips, drivers, vehicles } = useData()
+  const { trips, drivers, vehicles, createTrip, updateTrip } = useData()
   const [view, setView] = useState('list') // list | detail | form
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -850,18 +850,22 @@ export default function Trips() {
       .toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleSave = (form) => {
-    const savedTrip = selected && selected.id
-      ? { ...(trips.find(t => t.id === selected.id) || selected), ...form, id: selected.id }
-      : { ...form, id: Date.now() }
-
-    if (selected && selected.id) {
-      setTrips(ts => ts.map(t => t.id === selected.id ? savedTrip : t))
-    } else {
-      setTrips(ts => [...ts, savedTrip])
+  const handleSave = async (form) => {
+    try {
+      let savedTrip
+      if (selected && selected.id) {
+        savedTrip = await updateTrip(selected.id, form)
+        // If updateTrip returns undefined (no return value), fall back to merging
+        if (!savedTrip) savedTrip = { ...(trips.find(t => t.id === selected.id) || selected), ...form }
+      } else {
+        savedTrip = await createTrip(form)
+        if (!savedTrip) savedTrip = form
+      }
+      setSelected(savedTrip)
+      setView('detail')
+    } catch (err) {
+      alert(err.message || 'Failed to save trip')
     }
-    setSelected(savedTrip)
-    setView('detail')
   }
 
   if (view === 'detail' && selected) {

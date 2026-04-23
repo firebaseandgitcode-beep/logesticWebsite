@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Plus, Search, ArrowLeft, Eye, Camera, ChevronRight } from 'lucide-react'
-import { generateManagerId } from '../data/store'
+// generateManagerId removed — backend assigns managerId
 import { useData } from '../context/DataContext'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
@@ -354,7 +354,8 @@ function MemberDetail({ member, history, onBack, onEdit }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Management() {
-  const { management, setManagement, jobHistory } = useData()
+  const { management, createStaff, updateStaff } = useData()
+  const jobHistory = [] // job history is not available via API yet
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
@@ -368,20 +369,30 @@ export default function Management() {
     m.username.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleSave = (form) => {
-    if (editing) {
-      setManagement(ms => ms.map(m => m.id === editing.id ? { ...m, ...form } : m))
-      if (selected?.id === editing.id) setSelected(prev => ({ ...prev, ...form }))
-    } else {
-      const newId = generateManagerId(management)
-      setManagement(ms => [...ms, { ...form, id: Date.now(), managerId: newId }])
+  const handleSave = async (form) => {
+    try {
+      if (editing) {
+        await updateStaff(editing.id, form)
+        if (selected?.id === editing.id) setSelected(prev => ({ ...prev, ...form }))
+      } else {
+        await createStaff(form)
+      }
+      setShowModal(false)
+      setEditing(null)
+    } catch (err) {
+      alert(err.message || 'Failed to save member')
     }
-    setShowModal(false)
-    setEditing(null)
   }
 
-  const toggleStatus = (id) =>
-    setManagement(ms => ms.map(m => m.id === id ? { ...m, status: m.status === 'active' ? 'inactive' : 'active' } : m))
+  const toggleStatus = async (id) => {
+    const m = management.find(m => m.id === id)
+    if (!m) return
+    try {
+      await updateStaff(id, { status: m.status === 'active' ? 'inactive' : 'active' })
+    } catch (err) {
+      alert(err.message || 'Failed to update status')
+    }
+  }
 
   if (view === 'detail' && selected) {
     const live = management.find(m => m.id === selected.id) || selected
@@ -486,7 +497,7 @@ export default function Management() {
             onSave={handleSave}
             onClose={() => { setShowModal(false); setEditing(null) }}
             existing={editing}
-            nextId={generateManagerId(management)}
+            nextId="Auto-generated"
           />
         </Modal>
       )}
