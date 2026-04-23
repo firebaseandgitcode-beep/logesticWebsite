@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Truck, Users, UserCog, Menu, Route, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Truck, Users, UserCog, Menu, Route, ChevronRight, LogOut } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,6 +14,16 @@ const navItems = [
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
+  const { currentUser, logout } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
+
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'SA'
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans">
@@ -58,19 +69,32 @@ export default function Layout() {
           ))}
         </nav>
 
-        <button
-          onClick={() => { navigate('/profile'); setSidebarOpen(false) }}
-          className="flex items-center gap-3 px-4 py-3 mx-3 mb-3 rounded-lg hover:bg-gray-100 transition-colors text-left group"
-        >
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold">SG</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">Sujay G P</p>
-            <p className="text-xs text-gray-400 truncate">Super Admin</p>
-          </div>
-          <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
-        </button>
+        <div className="mx-3 mb-3 space-y-1">
+          <button
+            onClick={() => { navigate('/profile'); setSidebarOpen(false) }}
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-lg hover:bg-gray-100 transition-colors text-left group"
+          >
+            {currentUser?.avatar ? (
+              <img src={currentUser.avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold">{initials}</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{currentUser?.name || 'Super Admin'}</p>
+              <p className="text-xs text-gray-400 truncate">Super Admin</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-400 group-hover:text-gray-600 shrink-0" />
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-2.5 w-full rounded-lg hover:bg-red-50 transition-colors text-left group"
+          >
+            <LogOut size={16} className="text-gray-400 group-hover:text-red-500 shrink-0" />
+            <span className="text-sm text-gray-500 group-hover:text-red-600">Sign out</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main */}
