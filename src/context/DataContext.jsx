@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
+import { useAuth } from './AuthContext'
 
 const DataContext = createContext(null)
 
@@ -24,14 +25,13 @@ async function uploadAllBase64(obj, folder) {
 }
 
 export function DataProvider({ children }) {
+  const { currentUser } = useAuth()
   const [vehicles, setVehicles] = useState([])
   const [drivers, setDrivers] = useState([])
   const [management, setManagement] = useState([])
   const [trips, setTrips] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
-  const isLoggedIn = () => Boolean(localStorage.getItem('logestic_token'))
 
   // ─── Load all collections ──────────────────────────────────────────────────
 
@@ -65,10 +65,16 @@ export function DataProvider({ children }) {
   }, [loadVehicles, loadDrivers, loadManagement, loadTrips])
 
   useEffect(() => {
-    if (!isLoggedIn()) return
+    if (!currentUser) {
+      setVehicles([])
+      setDrivers([])
+      setManagement([])
+      setTrips([])
+      return
+    }
     setLoading(true)
     refresh().finally(() => setLoading(false))
-  }, []) // intentionally run once on mount
+  }, [currentUser?.id]) // re-fetch whenever the logged-in user changes
 
   // ─── Upload helper ─────────────────────────────────────────────────────────
 
