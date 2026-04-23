@@ -56,7 +56,6 @@ export function DataProvider({ children }) {
   }, [])
 
   const refresh = useCallback(async () => {
-    if (!isLoggedIn()) return
     try {
       await Promise.all([loadVehicles(), loadDrivers(), loadManagement(), loadTrips()])
     } catch (err) {
