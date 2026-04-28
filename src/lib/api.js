@@ -1,6 +1,5 @@
-// Base URL — set VITE_API_URL in .env for local dev
 const BASE = import.meta.env.VITE_API_URL ||
-  'https://us-central1-mylogestic.cloudfunctions.net/api'
+  'https://us-central1-mylogestic1.cloudfunctions.net/api'
 
 async function request(path, options = {}) {
   const token = localStorage.getItem('logestic_token')

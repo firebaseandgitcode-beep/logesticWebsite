@@ -3,6 +3,20 @@ import { api } from '../lib/api'
 
 const AuthContext = createContext(null)
 
+const LOCAL_LOGIN = {
+  email: 'admin@local.test',
+  password: 'Admin@1234',
+  user: {
+    id: 'local-user',
+    name: 'Local Admin',
+    email: 'admin@local.test',
+    phone: '9999999999',
+    company: 'Local Logistics',
+    role: 'user',
+    status: 'active',
+  },
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -24,6 +38,11 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     setLoading(true)
     try {
+      if (import.meta.env.DEV && email === LOCAL_LOGIN.email && password === LOCAL_LOGIN.password) {
+        localStorage.setItem('logestic_token', 'local-dev-token')
+        setCurrentUser(LOCAL_LOGIN.user)
+        return { success: true }
+      }
       const data = await api.login({ email, password })
       localStorage.setItem('logestic_token', data.token)
       setCurrentUser(data.user)

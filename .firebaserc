@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "mylogestic"
-  }
+    "default": "mylogestic1",
+    "¸¸ç": "mylogestic"
+  },
+  "targets": {},
+  "etags": {}
 }

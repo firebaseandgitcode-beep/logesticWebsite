@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import { useAuth } from './AuthContext'
-import { initialManagement } from '../data/store'
+import { initialDrivers, initialManagement, initialTrips, initialVehicles } from '../data/store'
 
 const DataContext = createContext(null)
 
@@ -49,7 +49,7 @@ export function DataProvider({ children }) {
   const loadManagement = useCallback(async () => {
     const data = await api.getManagement()
     const staff = data.management || data.staff || []
-    setManagement(staff.length ? staff : initialManagement)
+    setManagement(staff)
   }, [])
 
   const loadTrips = useCallback(async () => {
@@ -62,6 +62,12 @@ export function DataProvider({ children }) {
       await Promise.all([loadVehicles(), loadDrivers(), loadManagement(), loadTrips()])
     } catch (err) {
       setError(err.message)
+      if (import.meta.env.DEV) {
+        setVehicles(initialVehicles)
+        setDrivers(initialDrivers)
+        setManagement(initialManagement)
+        setTrips(initialTrips)
+      }
     }
   }, [loadVehicles, loadDrivers, loadManagement, loadTrips])
 
